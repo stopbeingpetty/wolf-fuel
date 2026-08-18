@@ -42,7 +42,7 @@ wolf-fuel/
    - Napomena: ZIP prvo raspakiraj — GitHub ne raspakirava ZIP automatski.
 4. **Settings → Pages** → pod *Build and deployment* odaberi **Deploy from a branch**, grana `main`, mapa `/ (root)` → **Save**.
 5. Nakon 1–2 minute aplikacija je na adresi:
-   `https://TVOJE-IME.github.io/wolf-fuel/`
+   `https://stopbeingpetty.github.io/wolf-fuel/`
 
 Aplikacija odmah radi i bez ičega dalje — podaci se tada čuvaju lokalno u pregledniku. Za dijeljenje između iPhonea i Maca napravi još korake 2 i 3.
 
