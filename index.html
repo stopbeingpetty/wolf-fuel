@@ -265,8 +265,11 @@ main{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:22px 16p
 .setrow{display:flex;gap:10px;flex-wrap:wrap}
 .set-sec{margin-bottom:26px}
 .set-sec h3{font-family:var(--serif);font-weight:400;font-size:17px;color:var(--parch);letter-spacing:.02em;margin-bottom:12px}
-.status-line{font-size:13.5px;color:var(--txt2);border:1px solid var(--hair);border-radius:12px;padding:11px 14px;margin-bottom:14px;line-height:1.5}
+.status-line{font-size:13.5px;color:var(--txt2);border:1px solid var(--hair);border-radius:12px;padding:11px 14px;margin-bottom:14px;line-height:1.55}
 .status-line b{color:var(--parch);font-weight:600}
+.status-line.ok{border-color:rgba(47,191,85,.32)}
+.status-line.err{border-color:rgba(240,135,108,.42);background:rgba(240,135,108,.06);color:#F8C4B4}
+.status-line.err b{color:#FFD9CC}
 
 /* ================= JELA ================= */
 .lib-sec{margin-top:26px}
@@ -1550,15 +1553,16 @@ function openSettings(){
   h+='<div class="p-head"><div class="tt"><h2>Postavke</h2><div class="sub">Sinkronizacija i podaci</div></div><button class="iconbtn" data-act="sheet-x" aria-label="Zatvori">'+I.x.replace('<svg','<svg class="ic"')+'</button></div>';
   h+='<div class="p-body">';
   h+='<div class="set-sec"><h3>GitHub sinkronizacija</h3>';
-  h+='<div class="status-line">'+statusTxt+'</div>';
-  h+='<div class="field"><label for="gOwner">GitHub korisničko ime</label><input id="gOwner" class="inp" type="text" autocapitalize="off" autocorrect="off" value="'+esc(c.owner)+'" placeholder="npr. davidrw"></div>';
-  h+='<div class="field"><label for="gRepo">Repozitorij za podatke</label><input id="gRepo" class="inp" type="text" autocapitalize="off" autocorrect="off" value="'+esc(c.repo)+'" placeholder="npr. wolf-fuel-data"><div class="hint">Preporuka: zaseban <b>privatni</b> repozitorij, tako da tvoj plan prehrane nije javan.</div></div>';
-  h+='<div class="field"><label for="gToken">Fine-grained token</label><input id="gToken" class="inp" type="password" autocapitalize="off" autocorrect="off" value="'+esc(c.token)+'" placeholder="github_pat_…"><div class="hint">Token s dopuštenjem <b>Contents: Read and write</b> samo za taj repozitorij. Sprema se isključivo u ovom pregledniku, na ovom uređaju.</div></div>';
+  h+='<div class="status-line'+(cfg?' ok':'')+'" id="ghStatus">'+statusTxt+'</div>';
+  h+='<div class="field"><label for="gOwner">GitHub korisničko ime</label><input id="gOwner" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.owner)+'" placeholder="stopbeingpetty"></div>';
+  h+='<div class="field"><label for="gRepo">Repozitorij za podatke</label><input id="gRepo" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.repo)+'" placeholder="npr. wolf-fuel-data"><div class="hint">Samo ime repozitorija, bez korisničkog imena ispred. Mora biti <b>isto</b> na svim uređajima.</div></div>';
+  h+='<div class="field"><label for="gToken">Fine-grained token</label><input id="gToken" class="inp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.token)+'" placeholder="github_pat_…"><div class="hint">Najsigurnije je token <b>zalijepiti</b>, ne prepisivati. Mora imati <b>Contents: Read and write</b> i biti odobren baš za taj repozitorij. Sprema se samo u ovom pregledniku.</div></div>';
   h+='<details style="margin-bottom:14px"><summary style="cursor:pointer;color:var(--txt3);font-size:13px">Napredno (grana i putanja)</summary>'
-    +'<div class="field" style="margin-top:12px"><label for="gBranch">Grana</label><input id="gBranch" class="inp" type="text" value="'+esc(c.branch||'main')+'"></div>'
-    +'<div class="field"><label for="gPath">Datoteka</label><input id="gPath" class="inp" type="text" value="'+esc(c.path||'data.json')+'"></div></details>';
+    +'<div class="field" style="margin-top:12px"><label for="gBranch">Grana</label><input id="gBranch" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" value="'+esc(c.branch||'main')+'"></div>'
+    +'<div class="field"><label for="gPath">Datoteka</label><input id="gPath" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" value="'+esc(c.path||'data.json')+'"></div></details>';
   h+='<div class="setrow"><button class="btn btn-p grow" data-act="gh-save">Poveži i sinkroniziraj</button>'
-    +(cfg?'<button class="btn btn-g" data-act="gh-off">Odspoji</button>':'')+'</div>';
+    +'<button class="btn btn-g" data-act="gh-test">Provjeri vezu</button></div>';
+  if(cfg) h+='<div class="setrow" style="margin-top:10px"><button class="btn btn-g grow" data-act="gh-off">Odspoji</button></div>';
   h+='</div>';
   h+='<div class="set-sec"><h3>Podaci</h3><div class="setrow">'
     +'<button class="btn btn-g grow" data-act="exp">Preuzmi kopiju</button>'
@@ -1626,29 +1630,118 @@ function ghHeaders(){
   return { 'Authorization':'Bearer '+cfg.token, 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' };
 }
 function b64e(str){
-  var b=new TextEncoder().encode(str), s='';
-  for(var i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null, b.subarray(i,i+0x8000));
-  return btoa(s);
+  try{
+    if(typeof TextEncoder!=='undefined'){
+      var b=new TextEncoder().encode(str), s='';
+      for(var i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null, b.subarray(i,i+0x8000));
+      return btoa(s);
+    }
+  }catch(e){}
+  return btoa(unescape(encodeURIComponent(str)));
 }
 function b64d(b64){
-  var bin=atob(b64.replace(/\s/g,'')), a=new Uint8Array(bin.length);
-  for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
-  return new TextDecoder().decode(a);
+  var bin=atob(String(b64).replace(/\s/g,''));
+  try{
+    if(typeof TextDecoder!=='undefined'){
+      var a=new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
+      return new TextDecoder().decode(a);
+    }
+  }catch(e){}
+  return decodeURIComponent(escape(bin));
 }
 function ghUrl(){ return GH+'/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/'+cfg.path.split('/').map(encodeURIComponent).join('/'); }
+
+/* Niska razina: nikad ne baca — vraća {ok,status,json} ili {net:true}.
+   Tako razlikujemo stvarni prekid mreže od GitHubova odgovora (npr. 404). */
+function ghApi(path, c, opts){
+  var o=opts||{};
+  o.headers=Object.assign({
+    'Authorization':'Bearer '+c.token,
+    'Accept':'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28'
+  }, o.headers||{});
+  o.cache='no-store';
+  return fetch(GH+path, o).then(function(res){
+    return res.text().then(function(t){
+      var j=null; try{ j=JSON.parse(t); }catch(e){}
+      return { ok:res.ok, status:res.status, json:j,
+               rate:res.headers.get('x-ratelimit-remaining') };
+    });
+  }, function(){ return { net:true, ok:false, status:0 }; });
+}
+
+/* Točna dijagnoza: prvo token, pa repozitorij. Svaki slučaj ima svoju poruku. */
+function ghDiagnose(c){
+  var NET='Ne mogu doći do api.github.com. Provjeri mrežu; ako si na mobilnim podacima, isključi VPN / Lockdown Mode ili blokator sadržaja i pokušaj ponovno.';
+  return ghApi('/user', c).then(function(r){
+    if(r.net) return {code:'net', msg:NET};
+    if(r.status===401) return {code:'token', msg:'Token nije valjan ili je istekao. Napravi novi (Fine-grained token) i zalijepi ga ovdje.'};
+    if(r.status===403) return {code:'token', msg:(r.rate==='0'
+      ? 'GitHub privremeno ograničava broj zahtjeva. Pričekaj koju minutu.'
+      : 'GitHub je odbio token (403). Provjeri da nije opozvan i da nije istekao.')};
+    if(!r.ok) return {code:'other', msg:'GitHub je vratio pogrešku '+r.status+' pri provjeri tokena.'};
+    var login=(r.json&&r.json.login)||'';
+    return ghApi('/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo), c).then(function(r2){
+      if(r2.net) return {code:'net', msg:NET};
+      if(r2.status===404) return {code:'repo', login:login, msg:
+        'Token radi (prijavljen si kao <b>'+esc(login)+'</b>), ali ne vidi repozitorij <b>'+esc(c.owner+'/'+c.repo)+'</b>.'
+        +'<br><br>Dvije uobičajene kvake: <b>1)</b> ime repozitorija nije točno upisano; '
+        +'<b>2)</b> ovaj token nije odobren baš za taj repozitorij — na GitHubu pod <b>Repository access → Only select repositories</b> mora biti odabran <b>'+esc(c.repo)+'</b>, a pod <b>Permissions → Contents</b> mora pisati <b>Read and write</b>.'
+        +(login && !normEq(login,c.owner) ? '<br><br>Usput: korisničko ime upisao si kao <b>'+esc(c.owner)+'</b>, a token pripada računu <b>'+esc(login)+'</b>.' : '')};
+      if(r2.status===403) return {code:'perm', login:login, msg:'Token vidi repozitorij, ali nema dopuštenje za njega. Postavi <b>Permissions → Contents: Read and write</b>.'};
+      if(!r2.ok) return {code:'other', msg:'GitHub je vratio pogrešku '+r2.status+' za repozitorij '+esc(c.owner+'/'+c.repo)+'.'};
+      return {code:'ok', login:login};
+    });
+  });
+}
+
+/* Spajanje dvaju uređaja bez gubitka: jela se spajaju po nazivu, plan po danu i obroku. */
+function mergeStates(remote, local){
+  var out=JSON.parse(JSON.stringify(remote));
+  if(!Array.isArray(out.meals)) out.meals=[];
+  if(!out.plan||typeof out.plan!=='object') out.plan={};
+  var byName={}, map={};
+  out.meals.forEach(function(m){ byName[norm(m.name)]=m.id; });
+  (local.meals||[]).forEach(function(m){
+    var k=norm(m.name);
+    if(byName[k]){ map[m.id]=byName[k]; return; }
+    var c=JSON.parse(JSON.stringify(m));
+    out.meals.push(c); byName[k]=c.id; map[m.id]=c.id;
+  });
+  var added=0;
+  for(var d in (local.plan||{})){
+    var src=local.plan[d];
+    ['d','r','v'].forEach(function(k){
+      (src[k]||[]).forEach(function(id){
+        var nid=map[id]||id;
+        if(!out.plan[d]) out.plan[d]={d:[],r:[],v:[]};
+        if(!Array.isArray(out.plan[d][k])) out.plan[d][k]=[];
+        if(out.plan[d][k].indexOf(nid)<0){ out.plan[d][k].push(nid); added++; }
+      });
+    });
+  }
+  out.updatedAt=Date.now();
+  out.meta=out.meta||{}; out.meta.seeded=true;
+  out._merged=added;
+  return out;
+}
+function planIsEmpty(s){ return !s || !s.plan || Object.keys(s.plan).length===0; }
+
 
 function ghGet(){
   return fetch(ghUrl()+'?ref='+encodeURIComponent(cfg.branch||'main'),{headers:ghHeaders(),cache:'no-store'})
     .then(function(res){
       if(res.status===404) return null;
-      if(res.status===401||res.status===403) throw {auth:true};
+      if(res.status===401) throw {auth:true};
+      if(res.status===403) throw {auth:true};
       if(!res.ok) throw {status:res.status};
       return res.json().then(function(j){
         var data=null;
         try{ data=JSON.parse(b64d(j.content)); }catch(e){}
         return {sha:j.sha, data:data};
       });
-    });
+    }, function(){ throw {net:true}; });
 }
 function ghPut(sha){
   var body={ message:'meal-plan · '+new Date().toISOString(), content:b64e(JSON.stringify(state,null,2)), branch:cfg.branch||'main' };
@@ -1656,10 +1749,11 @@ function ghPut(sha){
   return fetch(ghUrl(),{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},ghHeaders()),body:JSON.stringify(body)})
     .then(function(res){
       if(res.status===401||res.status===403) throw {auth:true};
+      if(res.status===404) throw {norepo:true};
       if(res.status===409||res.status===422) throw {conflict:true};
       if(!res.ok) throw {status:res.status};
       return res.json();
-    });
+    }, function(){ throw {net:true}; });
 }
 function scheduleSync(){
   dirty=true;
@@ -1688,8 +1782,12 @@ function pushRemote(){
       }).catch(function(){ setStatus('err','Greška'); });
     } else if(err&&err.auth){
       setStatus('err','Token?'); toast('GitHub token nije valjan ili je istekao. Provjeri u Postavkama.');
+    } else if(err&&err.norepo){
+      setStatus('err','Repo?'); toast('Ne vidim repozitorij ovim tokenom — otvori Postavke i klikni „Provjeri vezu”.');
+    } else if(err&&err.net){
+      setStatus('err','Mreža?'); toast('Nema veze s GitHubom — promjene su spremljene lokalno.');
     } else {
-      setStatus('err','Offline'); toast('Nema veze — promjene su spremljene lokalno.');
+      setStatus('err','Greška'); toast('GitHub je vratio pogrešku '+((err&&err.status)||'')+' — promjene su spremljene lokalno.');
     }
   });
 }
@@ -1704,25 +1802,85 @@ function pullRemote(silent){
       if((rem.data.updatedAt||0)>(state.updatedAt||0)){
         state=rem.data; saveLocal(); rerender(true);
       } else if((state.updatedAt||0)>(rem.data.updatedAt||0)){
-        return pushRemote();
+        /* Zaštita: svjež uređaj (prazan plan) nikad ne smije prebrisati plan s GitHuba. */
+        if(planIsEmpty(state) && !planIsEmpty(rem.data)){
+          state=rem.data; saveLocal(); rerender(true);
+        } else return pushRemote();
       }
     }
     dirty=false; lastSyncAt=Date.now(); setStatus('ok','Sink');
   }).catch(function(err){
     if(err&&err.auth){ setStatus('err','Token?'); if(!silent) toast('GitHub token nije valjan ili je istekao.'); }
-    else { setStatus('err','Offline'); if(!silent) toast('Ne mogu dohvatiti podatke s GitHuba.'); }
+    else if(err&&err.net){ setStatus('err','Mreža?'); if(!silent) toast('Nema veze s GitHubom.'); }
+    else { setStatus('err','Greška'); if(!silent) toast('GitHub je vratio pogrešku '+((err&&err.status)||'')+'.'); }
+  });
+}
+function readGhForm(){
+  return {
+    owner:$('#gOwner').value.trim().replace(/^@/,'').replace(/\/.*$/,''),
+    repo:$('#gRepo').value.trim().replace(/^.*\//,''),
+    token:$('#gToken').value.trim(),
+    branch:($('#gBranch')?$('#gBranch').value.trim():'main')||'main',
+    path:($('#gPath')?$('#gPath').value.trim():'data.json')||'data.json'
+  };
+}
+function setGhMsg(kind, html){
+  var el=$('#ghStatus'); if(!el) return;
+  el.className='status-line'+(kind?' '+kind:'');
+  el.innerHTML=html;
+}
+function testGithub(){
+  var c=readGhForm();
+  if(!c.owner||!c.repo||!c.token){ setGhMsg('err','Ispuni korisničko ime, repozitorij i token.'); return; }
+  setGhMsg('', 'Provjeravam…');
+  ghDiagnose(c).then(function(d){
+    if(d.code==='ok') setGhMsg('ok','Sve je u redu — token radi i vidi <b>'+esc(c.owner+'/'+c.repo)+'</b>. Klikni „Poveži i sinkroniziraj”.');
+    else setGhMsg('err', d.msg);
   });
 }
 function connectGithub(){
-  var owner=$('#gOwner').value.trim(), repo=$('#gRepo').value.trim(), token=$('#gToken').value.trim();
-  var branch=($('#gBranch')?$('#gBranch').value.trim():'main')||'main';
-  var path=($('#gPath')?$('#gPath').value.trim():'data.json')||'data.json';
-  if(!owner||!repo||!token){ toast('Ispuni korisničko ime, repozitorij i token.'); return; }
-  cfg={owner:owner,repo:repo,branch:branch,path:path,token:token};
-  saveCfg(); ghSha=null;
+  var c=readGhForm();
+  if(!c.owner||!c.repo||!c.token){ setGhMsg('err','Ispuni korisničko ime, repozitorij i token.'); toast('Ispuni sva tri polja.'); return; }
+  setGhMsg('','Provjeravam…');
   setStatus('saving','Sink…');
-  pullRemote().then(function(){
-    if(!$('#syncPill').classList.contains('err')){ closeSheet(); toast('Povezano — podaci se sinkroniziraju s GitHubom.'); }
+  ghDiagnose(c).then(function(d){
+    if(d.code!=='ok'){
+      setGhMsg('err', d.msg);
+      setStatus('err', d.code==='net'?'Mreža?':(d.code==='repo'?'Repo?':'Token?'));
+      return;
+    }
+    cfg=c; saveCfg(); ghSha=null;
+    setGhMsg('','Dohvaćam plan s GitHuba…');
+    return ghGet().then(function(rem){
+      var localCopy=JSON.parse(JSON.stringify(state));
+      if(rem && rem.data && Array.isArray(rem.data.meals)){
+        ghSha=rem.sha;
+        if(planIsEmpty(state)){
+          /* Ovaj uređaj još nema plan — preuzmi sve s GitHuba. */
+          state=rem.data; saveLocal(); dirty=false; lastSyncAt=Date.now();
+          setStatus('ok','Sink'); closeSheet(); rerender(false);
+          toast('Povezano — plan je preuzet s GitHuba.');
+        } else {
+          /* Oba uređaja imaju plan — spoji, ne briši. */
+          var merged=mergeStates(rem.data, localCopy);
+          var n=merged._merged; delete merged._merged;
+          state=merged; saveLocal(); rerender(false);
+          pushRemote();
+          closeSheet();
+          toast(n ? 'Povezano — plan s ovog uređaja spojen je s onim na GitHubu.' : 'Povezano — plan je usklađen.');
+        }
+      } else {
+        /* Datoteke još nema — ovaj uređaj je stvara. */
+        ghSha=rem?rem.sha:null;
+        pushRemote(); closeSheet();
+        toast('Povezano — plan je poslan na GitHub.');
+      }
+    }).catch(function(err){
+      setGhMsg('err', (err&&err.net)
+        ? 'Veza s GitHubom prekinula se pri dohvaćanju podataka. Pokušaj ponovno.'
+        : 'GitHub je vratio pogrešku'+((err&&err.status)?' '+err.status:'')+' pri dohvaćanju datoteke '+esc(cfg.path)+'. Pokušaj ponovno.');
+      setStatus('err', (err&&err.net)?'Mreža?':'Greška');
+    });
   });
 }
 function disconnectGithub(){
@@ -1813,6 +1971,7 @@ document.addEventListener('click',function(e){
     case 'ed-del': deleteEditor(); break;
     case 'st-win': ui.statsWin=+el.dataset.n; saveUi(); rerender(true); break;
     case 'gh-save': connectGithub(); break;
+    case 'gh-test': testGithub(); break;
     case 'gh-off': disconnectGithub(); break;
     case 'exp': exportJson(); break;
     case 'imp': $('#impFile').click(); break;
