@@ -262,6 +262,11 @@ main{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:22px 16p
 .pills{display:flex;gap:8px;flex-wrap:wrap}
 .pills button{padding:10px 15px;border-radius:12px;border:1px solid var(--hair2);font-size:13.5px;font-weight:600;color:var(--txt2);display:flex;align-items:center;gap:8px}
 .pills button.on{border-color:var(--gold);color:var(--gold);background:rgba(253,210,100,.07)}
+.pw{position:relative}
+.pw .inp{padding-right:146px}
+.pw .tools{position:absolute;right:7px;top:50%;transform:translateY(-50%);display:flex;gap:6px}
+.mini{padding:8px 10px;border:1px solid var(--hair2);border-radius:9px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);white-space:nowrap;transition:color .15s,border-color .15s}
+.mini:hover{color:var(--gold);border-color:var(--gold-h)}
 .setrow{display:flex;gap:10px;flex-wrap:wrap}
 .set-sec{margin-bottom:26px}
 .set-sec h3{font-family:var(--serif);font-weight:400;font-size:17px;color:var(--parch);letter-spacing:.02em;margin-bottom:12px}
@@ -1556,7 +1561,10 @@ function openSettings(){
   h+='<div class="status-line'+(cfg?' ok':'')+'" id="ghStatus">'+statusTxt+'</div>';
   h+='<div class="field"><label for="gOwner">GitHub korisničko ime</label><input id="gOwner" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.owner)+'" placeholder="stopbeingpetty"></div>';
   h+='<div class="field"><label for="gRepo">Repozitorij za podatke</label><input id="gRepo" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.repo)+'" placeholder="npr. wolf-fuel-data"><div class="hint">Samo ime repozitorija, bez korisničkog imena ispred. Mora biti <b>isto</b> na svim uređajima.</div></div>';
-  h+='<div class="field"><label for="gToken">Fine-grained token</label><input id="gToken" class="inp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.token)+'" placeholder="github_pat_…"><div class="hint">Najsigurnije je token <b>zalijepiti</b>, ne prepisivati. Mora imati <b>Contents: Read and write</b> i biti odobren baš za taj repozitorij. Sprema se samo u ovom pregledniku.</div></div>';
+  h+='<div class="field"><label for="gToken">Fine-grained token</label>'
+    +'<div class="pw"><input id="gToken" class="inp" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" value="'+esc(c.token)+'" placeholder="github_pat_…">'
+    +'<span class="tools"><button class="mini" data-act="tok-show">Prikaži</button><button class="mini" data-act="tok-copy">Kopiraj</button></span></div>'
+    +'<div class="hint"><b>Isti token vrijedi na svim uređajima</b> — ne treba ti poseban za mobitel. Ako ga više nemaš zapisanog, na uređaju gdje sinkronizacija radi klikni <b>Prikaži</b> ili <b>Kopiraj</b>. Mora imati <b>Contents: Read and write</b> i biti odobren baš za taj repozitorij. Sprema se samo u ovom pregledniku.</div></div>';
   h+='<details style="margin-bottom:14px"><summary style="cursor:pointer;color:var(--txt3);font-size:13px">Napredno (grana i putanja)</summary>'
     +'<div class="field" style="margin-top:12px"><label for="gBranch">Grana</label><input id="gBranch" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" value="'+esc(c.branch||'main')+'"></div>'
     +'<div class="field"><label for="gPath">Datoteka</label><input id="gPath" class="inp" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" value="'+esc(c.path||'data.json')+'"></div></details>';
@@ -1838,6 +1846,24 @@ function testGithub(){
     else setGhMsg('err', d.msg);
   });
 }
+function copyToken(){
+  var i=$('#gToken');
+  if(!i || !i.value.trim()){ toast('Nema tokena za kopiranje.'); return; }
+  var v=i.value.trim();
+  function fallback(){
+    var t=i.type; i.type='text';
+    try{ i.select(); i.setSelectionRange(0,99999); document.execCommand('copy'); toast('Token kopiran.'); }
+    catch(e){ toast('Kopiranje nije uspjelo — klikni „Prikaži” pa kopiraj ručno.'); }
+    i.type=t;
+  }
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(v).then(function(){ toast('Token kopiran.'); }, fallback);
+      return;
+    }
+  }catch(e){}
+  fallback();
+}
 function connectGithub(){
   var c=readGhForm();
   if(!c.owner||!c.repo||!c.token){ setGhMsg('err','Ispuni korisničko ime, repozitorij i token.'); toast('Ispuni sva tri polja.'); return; }
@@ -1972,6 +1998,12 @@ document.addEventListener('click',function(e){
     case 'st-win': ui.statsWin=+el.dataset.n; saveUi(); rerender(true); break;
     case 'gh-save': connectGithub(); break;
     case 'gh-test': testGithub(); break;
+    case 'tok-show':
+      (function(){ var i=$('#gToken'); if(!i) return;
+        var reveal=i.type==='password'; i.type=reveal?'text':'password';
+        el.textContent=reveal?'Sakrij':'Prikaži'; })();
+      break;
+    case 'tok-copy': copyToken(); break;
     case 'gh-off': disconnectGithub(); break;
     case 'exp': exportJson(); break;
     case 'imp': $('#impFile').click(); break;
